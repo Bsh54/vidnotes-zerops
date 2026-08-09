@@ -36,4 +36,4 @@ zerops:
       healthCheck:
         httpGet:
           port: 8000
-          path: /
+          path: /health

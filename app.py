@@ -93,6 +93,12 @@ def index():
     return send_from_directory('static', 'index.html')
 
 
+@app.route('/health')
+def health():
+    # Lightweight liveness probe for the Zerops runtime health check.
+    return jsonify({'status': 'ok'})
+
+
 @app.route('/languages')
 def page_languages():
     return send_from_directory('static', 'languages.html')
