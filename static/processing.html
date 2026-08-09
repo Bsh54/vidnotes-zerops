@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Working… — VidNotes</title>
+<link rel="icon" href="/favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:hsl(40,15%,97%);--fg:hsl(0,0%,13%);--card:#fff;--border:hsl(40,14%,83%);--muted:hsl(40,16%,91%);
+--primary:hsl(14,52%,49%);--primary-lt:hsl(14,52%,96%);--green:hsl(142,50%,40%);--r:8px;
+--shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.04)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+nav{height:60px;display:flex;align-items:center;padding:0 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:var(--primary)}
+.logo span{color:var(--fg)}
+main{max-width:560px;margin:0 auto;padding:70px 20px;text-align:center}
+h1{font-family:'Playfair Display',serif;font-size:30px;margin-bottom:8px}
+.sub{color:hsl(0,0%,40%);margin-bottom:38px;min-height:22px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:30px;box-shadow:var(--shadow-md)}
+.bar{width:100%;height:10px;border-radius:5px;background:var(--muted);overflow:hidden;margin-bottom:26px}
+.bar i{display:block;height:100%;width:0;background:var(--primary);transition:width .5s}
+.stp{display:flex;align-items:center;gap:12px;padding:11px 4px;text-align:left;color:hsl(0,0%,50%);font-size:15px}
+.stp .pct{margin-left:auto;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:var(--primary);min-width:46px;text-align:right}
+.stp.ok .pct{color:var(--green)}
+.gpct{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:var(--primary);margin-bottom:6px;text-align:right}
+.stp .dot{width:26px;height:26px;border-radius:50%;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.stp.on{color:var(--fg);font-weight:500}
+.stp.on .dot{background:var(--primary-lt);color:var(--primary)}
+.stp.ok{color:var(--green)}
+.stp.ok .dot{background:hsl(142,50%,95%);color:var(--green)}
+.err{color:#b3261e;margin-top:22px;display:none}
+@keyframes pulse{50%{opacity:.45}}
+.stp.on .dot{animation:pulse 1.2s infinite}
+</style>
+</head>
+<body>
+<nav><div class="logo">Vid<span>Notes</span></div></nav>
+<main>
+  <h1>Building your study pack</h1>
+  <p class="sub" id="msg">Getting your video ready…</p>
+  <div class="card">
+    <div class="gpct" id="gpct">0%</div>
+    <div class="bar"><i id="fill"></i></div>
+    <div class="stp" id="s0"><div class="dot">📥</div>Fetching the video<span class="pct" id="p0"></span></div>
+    <div class="stp" id="s1"><div class="dot">🎧</div>Listening & transcribing the lecture<span class="pct" id="p1"></span></div>
+    <div class="stp" id="s2"><div class="dot">🌍</div>Translating into your language<span class="pct" id="p2"></span></div>
+    <div class="stp" id="s3"><div class="dot">📝</div>Writing subtitles & study notes<span class="pct" id="p3"></span></div>
+    <div class="err" id="err"></div>
+  </div>
+</main>
+<script>
+const job=new URLSearchParams(location.search).get('job');
+if(!job)location.href='/';
+const params=JSON.parse(sessionStorage.getItem('ss_'+job)||'{}');
+const urlLang=new URLSearchParams(location.search).get('lang');
+if(urlLang)params.tgt_lang=urlLang;
+if(!params.tgt_lang){location.href='/languages?job='+encodeURIComponent(job);}
+let started=false;
+// Plages du % global couvertes par chaque etape (cote serveur) :
+// s1 transcription 5-33, s2 traduction 38-72, s3 sous-titres+notes 75-100.
+const RANGES={1:[5,33],2:[38,72],3:[75,100]};
+function stepPct(i,g){
+  const r=RANGES[i];if(!r)return null;
+  return Math.max(0,Math.min(100,Math.round((g-r[0])/(r[1]-r[0])*100)));
+}
+function mark(step,pct){
+  document.getElementById('fill').style.width=pct+'%';
+  document.getElementById('gpct').textContent=Math.round(pct)+'%';
+  for(let i=0;i<=3;i++){
+    const el=document.getElementById('s'+i),pe=document.getElementById('p'+i);
+    el.className='stp'+(i<step?' ok':(i===step?' on':''));
+    if(i<step)pe.textContent='100%';
+    else if(i===step){const sp=stepPct(i,pct);pe.textContent=(sp===null?'…':sp+'%');}
+    else pe.textContent='';
+  }
+}
+function fail(m){document.getElementById('err').style.display='block';
+  document.getElementById('err').textContent=m;document.getElementById('msg').textContent='Something went wrong.'}
+async function tick(){
+  try{
+    const r=await fetch('/api/status/'+job);const d=await r.json();
+    if(d.error&&r.status===404)return fail('Session not found. Please start again.');
+    if(d.status==='error')return fail(d.error||'Processing failed.');
+    if(d.status==='fetching'){mark(0,6);document.getElementById('msg').textContent='Downloading from YouTube…';}
+    else if(d.status==='uploaded'&&!started){
+      started=true;
+      await fetch('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({job_id:job,src_lang:'auto',tgt_lang:params.tgt_lang||'en',
+                             sub_style:'broadcast',sub_size:'medium'})});
+    }
+    else if(d.status==='queued'){mark(1,12);document.getElementById('msg').textContent=
+      d.queue_pos>1?('In queue (position '+d.queue_pos+')…'):'Starting…';}
+    else if(d.status==='processing'){
+      const step=Math.min(3,(d.step||1));
+      mark(step,Math.max(12,d.progress||0));
+      document.getElementById('msg').textContent=['','Transcribing the audio…','Translating every line…','Burning subtitles & writing your study sheet…'][step];
+    }
+    else if(d.status==='done'){mark(4,100);
+      return location.href='/result?job='+encodeURIComponent(job);}
+    setTimeout(tick,2000);
+  }catch(e){setTimeout(tick,3000)}
+}
+tick();
+</script>
+</body>
+</html>

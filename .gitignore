@@ -1,0 +1,25 @@
+# Secrets
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data
+uploads/
+outputs/
+jobs/
+*.db
+*.db-wal
+*.db-shm
+analytics.db*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

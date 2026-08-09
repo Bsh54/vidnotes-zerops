@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Choose your language — VidNotes</title>
+<link rel="icon" href="/favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:hsl(40,15%,97%);--fg:hsl(0,0%,13%);--card:#fff;--border:hsl(40,14%,83%);
+--primary:hsl(14,52%,49%);--primary-h:hsl(14,52%,44%);--primary-lt:hsl(14,52%,96%);--primary-mid:hsl(14,52%,88%);--r:8px;
+--shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.04)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+nav{height:60px;display:flex;align-items:center;padding:0 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:var(--primary)}
+.logo span{color:var(--fg)}
+main{max-width:860px;margin:0 auto;padding:44px 20px 120px;text-align:center}
+h1{font-family:'Playfair Display',serif;font-size:clamp(26px,4vw,38px)}
+.sub{color:hsl(0,0%,38%);margin:12px 0 30px}
+h2.sec{font-family:'Space Grotesk',sans-serif;font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--primary);text-align:left;margin:26px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px}
+.lang{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:14px;transition:.12s;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:10px;text-align:left}
+.lang img{width:28px;height:21px;border-radius:3px;object-fit:cover;border:1px solid var(--border);flex-shrink:0}
+.lang:hover{border-color:var(--primary);background:var(--primary-lt)}
+.lang.sel{border:2px solid var(--primary);background:var(--primary-lt);font-weight:600;padding:11px 9px}
+.footer{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--border);padding:14px;box-shadow:0 -4px 12px rgba(0,0,0,.05);text-align:center}
+.btn{background:var(--primary);color:#fff;border:0;border-radius:var(--r);padding:14px 44px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;cursor:pointer}
+.btn:hover{background:var(--primary-h)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+</style>
+</head>
+<body>
+<nav><a href="/" style="text-decoration:none"><div class="logo">Vid<span>Notes</span></div></a></nav>
+<main>
+  <h1>Which language do you study in?</h1>
+  <p class="sub">Subtitles, transcript and study notes will all be in this language.</p>
+  <h2 class="sec">World languages</h2>
+  <div class="grid" id="world"></div>
+  <h2 class="sec">African languages</h2>
+  <div class="grid" id="africa"></div>
+</main>
+<div class="footer"><button class="btn" id="gobtn" disabled onclick="start()">Generate my study pack →</button></div>
+<script>
+// [lang code, flag country code, name]
+const WORLD=[
+ ['en','gb','English'],['fr','fr','Français'],['ar','sa','العربية'],['es','es','Español'],
+ ['pt','pt','Português'],['de','de','Deutsch'],['it','it','Italiano'],['nl','nl','Nederlands'],
+ ['tr','tr','Türkçe'],['ru','ru','Русский'],['pl','pl','Polski'],['el','gr','Ελληνικά'],
+ ['zh','cn','中文'],['ja','jp','日本語'],['ko','kr','한국어'],['hi','in','हिन्दी'],
+ ['bn','bd','বাংলা'],['ur','pk','اردو'],['fa','ir','فارسی'],['id','id','Indonesia'],
+ ['vi','vn','Tiếng Việt'],['th','th','ไทย'],
+];
+const AFRICA=[
+ ['sw','tz','Kiswahili'],['ha','ng','Hausa'],['yo','ng','Yorùbá'],['ig','ng','Igbo'],
+ ['am','et','አማርኛ (Amharic)'],['om','et','Afaan Oromoo'],['ti','er','ትግርኛ (Tigrinya)'],
+ ['so','so','Soomaali'],['wo','sn','Wolof'],['bm','ml','Bamanankan'],['fon','bj','Fon'],
+ ['tw','gh','Twi'],['ak','gh','Akan'],['ee','gh','Eʋegbe (Ewe)'],['gaa','gh','Ga'],
+ ['krio','sl','Krio'],['ln','cd','Lingála'],['kg','cg','Kikongo'],['rw','rw','Kinyarwanda'],
+ ['run','bi','Kirundi'],['lg','ug','Luganda'],['cgg','ug','Rukiga'],['luo','ke','Dholuo'],
+ ['zu','za','isiZulu'],['xh','za','isiXhosa'],['af','za','Afrikaans'],['nso','za','Sepedi'],
+ ['ts','za','Xitsonga'],['ve','za','Tshivenḓa'],['st','ls','Sesotho'],['tn','bw','Setswana'],
+ ['ss','sz','siSwati'],['sn','zw','chiShona'],['ny','mw','Chichewa'],['bem','zm','Bemba'],
+ ['mg','mg','Malagasy'],['mfe','mu','Kreol Morisien'],['nus','ss','Nuer'],
+];
+const job=new URLSearchParams(location.search).get('job');
+if(!job)location.href='/';
+let sel=null;
+function fill(id,list){
+  const grid=document.getElementById(id);
+  list.forEach(([code,cc,name])=>{
+    const d=document.createElement('div');d.className='lang';
+    d.innerHTML=`<img src="https://flagcdn.com/w40/${cc}.png" alt="" loading="lazy">${name}`;
+    d.onclick=()=>{document.querySelectorAll('.lang').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');sel=code;document.getElementById('gobtn').disabled=false};
+    grid.appendChild(d);
+  });
+}
+fill('world',WORLD);fill('africa',AFRICA);
+function proceed(){
+  sessionStorage.setItem('ss_'+job,JSON.stringify({tgt_lang:sel}));
+  location.href='/processing?job='+encodeURIComponent(job)+'&lang='+encodeURIComponent(sel);
+}
+function start(){
+  if(!sel)return;
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+  ov.innerHTML='<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;font-family:Inter,system-ui,sans-serif"><div style="font-size:34px;margin-bottom:6px">⏱️</div><h2 style="font-family:Playfair Display,serif;font-size:22px;margin:0 0 10px">A quick heads-up</h2><p style="color:hsl(0,0%,35%);font-size:15px;line-height:1.55;margin:0 0 20px">Because of our current server limits, we can only process the <b>first 10 minutes</b> of a video. Longer videos will be trimmed to 10&nbsp;minutes.<br><br>We are scaling up our servers soon to lift this limit. Thanks for your patience! 🙏</p><div style="display:flex;gap:10px;justify-content:center"><button id="mCancel" style="background:transparent;border:1px solid var(--border);color:var(--fg);border-radius:8px;padding:11px 20px;font-family:Space Grotesk,sans-serif;font-weight:600;cursor:pointer">Cancel</button><button id="mGo" style="background:var(--primary);border:0;color:#fff;border-radius:8px;padding:11px 24px;font-family:Space Grotesk,sans-serif;font-weight:600;cursor:pointer">Continue →</button></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#mCancel').onclick=function(){ov.remove();};
+  ov.querySelector('#mGo').onclick=proceed;
+}
+</script>
+</body>
+</html>

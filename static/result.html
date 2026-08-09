@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your study pack — VidNotes</title>
+<link rel="icon" href="/favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<style>
+:root{--bg:hsl(40,15%,97%);--fg:hsl(0,0%,13%);--card:#fff;--border:hsl(40,14%,83%);--muted:hsl(40,16%,91%);
+--primary:hsl(14,52%,49%);--primary-h:hsl(14,52%,44%);--primary-lt:hsl(14,52%,96%);
+--green:hsl(142,50%,40%);--green-lt:hsl(142,50%,95%);--r:8px;
+--shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.04)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+nav{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:var(--primary)}
+.logo span{color:var(--fg)}
+main{max-width:900px;margin:0 auto;padding:40px 20px 90px}
+h1{font-family:'Playfair Display',serif;font-size:clamp(26px,4vw,36px);text-align:center;margin-bottom:6px}
+.sub{text-align:center;color:hsl(0,0%,40%);margin-bottom:32px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-md);overflow:hidden;margin-bottom:26px}
+video{width:100%;display:block;background:#000;max-height:520px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;padding:16px;border-top:1px solid var(--border)}
+.btn{background:var(--primary);color:#fff;border:0;border-radius:var(--r);padding:12px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14.5px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{background:var(--primary-h)}
+.btn.ghost{background:var(--card);color:var(--primary);border:1.5px solid var(--primary)}
+.btn.ghost:hover{background:var(--primary-lt)}
+.notes{padding:30px 34px}
+.notes-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 34px;border-bottom:1px solid var(--border);background:var(--primary-lt)}
+.notes-head h2{font-family:'Space Grotesk',sans-serif;font-size:17px;color:var(--primary)}
+#md h1{font-family:'Playfair Display',serif;font-size:26px;text-align:left;margin:0 0 14px}
+#md h2{font-family:'Space Grotesk',sans-serif;font-size:19px;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--primary-lt)}
+#md h3{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:18px 0 8px;color:var(--primary)}
+#md p,#md li{font-size:15px;line-height:1.7;color:hsl(0,0%,22%)}
+#md ul,#md ol{padding-left:22px;margin:8px 0}
+#md li{margin:4px 0}
+#md strong{color:var(--fg)}
+#md code{background:var(--muted);padding:1px 5px;border-radius:4px;font-size:13.5px}
+.wait{text-align:center;padding:40px;color:hsl(0,0%,45%)}
+.spin{width:26px;height:26px;border:3px solid var(--muted);border-top-color:var(--primary);border-radius:50%;margin:0 auto 14px;animation:r 1s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<nav><a href="/" style="text-decoration:none"><div class="logo">Vid<span>Notes</span></div></a>
+<a class="btn ghost" href="/">＋ New lecture</a></nav>
+<main>
+  <h1>Your study pack is ready 🎓</h1>
+  <p class="sub">Subtitled video, translated transcript and full study notes.</p>
+
+  <div class="card">
+    <video id="vid" controls playsinline></video>
+    <div class="actions">
+      <a class="btn" id="dlvid">⬇ Download subtitled video</a>
+      <a class="btn ghost" id="dltxt">⬇ Download transcript (.txt)</a>
+      <a class="btn ghost" id="dlnotes">⬇ Download study notes (PDF)</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="notes-head"><h2>📝 AI Study Notes</h2></div>
+    <div class="notes" id="notes">
+      <div class="wait"><div class="spin"></div>Your detailed study sheet is being written…</div>
+    </div>
+  </div>
+</main>
+<script>
+const job=new URLSearchParams(location.search).get('job');
+if(!job)location.href='/';
+document.getElementById('vid').src='/api/video/'+job;
+document.getElementById('dlvid').href='/api/download/'+job;
+document.getElementById('dltxt').href='/api/transcript/'+job;
+document.getElementById('dlnotes').href='/api/notes-pdf/'+job;
+let NOTES='';
+async function loadNotes(tries){
+  try{
+    const r=await fetch('/api/summary/'+job);
+    if(r.ok){const d=await r.json();NOTES=d.markdown||'';
+      document.getElementById('notes').innerHTML='<div id="md">'+marked.parse(NOTES)+'</div>';return}
+  }catch(_){}
+  if(tries>0)setTimeout(()=>loadNotes(tries-1),4000);
+  else document.getElementById('notes').innerHTML='<div class="wait">Study notes are not available for this video.</div>';
+}
+loadNotes(30);
+
+</script>
+</body>
+</html>

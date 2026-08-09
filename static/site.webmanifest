@@ -1,0 +1,14 @@
+{
+  "name": "Oreus",
+  "short_name": "Oreus",
+  "description": "Générateur de sous-titres par IA pour vos vidéos en 99 langues dont 39 africaines.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F4",
+  "theme_color": "#BE5A3C",
+  "lang": "fr",
+  "icons": [
+    {"src": "/icon-180.png", "sizes": "180x180", "type": "image/png"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

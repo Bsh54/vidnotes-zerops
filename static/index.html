@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VidNotes — Turn any lecture video into study material</title>
+<meta name="description" content="Paste a YouTube link or upload a lecture video. Get it subtitled in your language, with a full translated transcript and ultra-detailed AI study notes.">
+<link rel="icon" href="/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:hsl(40,15%,97%);--fg:hsl(0,0%,13%);--card:#fff;--border:hsl(40,14%,83%);--muted:hsl(40,16%,91%);
+--primary:hsl(14,52%,49%);--primary-h:hsl(14,52%,44%);--primary-lt:hsl(14,52%,96%);--primary-mid:hsl(14,52%,88%);
+--green:hsl(142,50%,40%);--green-lt:hsl(142,50%,95%);--r:8px;
+--shadow-md:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -2px rgba(0,0,0,.04);
+--shadow-lg:0 10px 15px -3px rgba(0,0,0,.07),0 4px 6px -4px rgba(0,0,0,.04)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+nav{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:var(--primary)}
+.logo span{color:var(--fg)}
+main{max-width:960px;margin:0 auto;padding:56px 20px 80px}
+h1{font-family:'Playfair Display',serif;font-size:clamp(32px,5vw,52px);line-height:1.15;text-align:center}
+h1 em{color:var(--primary);font-style:normal}
+.sub{text-align:center;color:hsl(0,0%,35%);max-width:640px;margin:18px auto 44px;font-size:17px;line-height:1.6}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:760px){.modes{grid-template-columns:1fr}}
+.mode{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:28px;box-shadow:var(--shadow-md)}
+.mode h2{font-family:'Space Grotesk',sans-serif;font-size:18px;margin-bottom:6px}
+.mode p{color:hsl(0,0%,42%);font-size:14px;margin-bottom:18px}
+.ytrow{display:flex;gap:10px}
+.ytrow input{flex:1;padding:13px 14px;border:1px solid var(--border);border-radius:var(--r);font:inherit;font-size:14px;background:var(--bg)}
+.ytrow input:focus{outline:2px solid var(--primary-mid);border-color:var(--primary)}
+.btn{background:var(--primary);color:#fff;border:0;border-radius:var(--r);padding:13px 22px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--primary-h)}
+.btn:disabled{opacity:.55;cursor:wait}
+.drop{border:2px dashed var(--border);border-radius:var(--r);padding:34px 16px;text-align:center;cursor:pointer;transition:.15s;background:var(--bg)}
+.drop:hover,.drop.over{border-color:var(--primary);background:var(--primary-lt)}
+.drop .ic{font-size:30px;margin-bottom:8px}
+.drop b{font-family:'Space Grotesk',sans-serif}
+.drop small{display:block;color:hsl(0,0%,45%);margin-top:6px}
+.err{color:#b3261e;font-size:13px;margin-top:10px;min-height:18px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:64px}
+@media(max-width:760px){.steps{grid-template-columns:1fr}}
+.step{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--primary-lt);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:600;font-family:'Space Grotesk',sans-serif;margin-bottom:10px}
+.step h3{font-family:'Space Grotesk',sans-serif;font-size:15px;margin-bottom:4px}
+.step p{font-size:13.5px;color:hsl(0,0%,42%);line-height:1.5}
+.bar{width:100%;height:6px;border-radius:3px;background:var(--muted);margin-top:14px;overflow:hidden;display:none}
+.bar i{display:block;height:100%;width:0;background:var(--primary);transition:width .2s}
+</style>
+</head>
+<body>
+<nav><div class="logo">Vid<span>Notes</span></div></nav>
+<main>
+  <h1>Any lecture, in <em>your language</em>,<br>with <em>study notes</em>.</h1>
+  <p class="sub">Paste a YouTube link or upload a class recording. VidNotes gives you back the video subtitled in your language, the full translated transcript, and ultra-detailed AI study notes covering every part of the lesson.</p>
+
+  <div class="modes">
+    <div class="mode">
+      <h2>📺 From a YouTube link</h2>
+      <p>Paste the link of any lecture, course or tutorial.</p>
+      <div class="ytrow">
+        <input id="yturl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+        <button class="btn" id="ytbtn" onclick="goYT()">Continue</button>
+      </div>
+      <div class="err" id="yterr"></div>
+    </div>
+    <div class="mode">
+      <h2>📂 Upload your video</h2>
+      <p>A recorded class, a downloaded course — up to 500&nbsp;MB.</p>
+      <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+        <div class="ic">🎬</div>
+        <b>Click or drop your video here</b>
+        <small>MP4, MOV, MKV, WEBM…</small>
+      </div>
+      <input id="file" type="file" accept="video/*" hidden>
+      <div class="bar" id="bar"><i id="barfill"></i></div>
+      <div class="err" id="uperr"></div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>Send your lecture</h3><p>YouTube link or direct upload — no account needed.</p></div>
+    <div class="step"><div class="n">2</div><h3>Pick your language</h3><p>French, Arabic, Swahili, Wolof, Yoruba and many more — including languages most tools ignore.</p></div>
+    <div class="step"><div class="n">3</div><h3>Study smarter</h3><p>Subtitled video + translated transcript + a complete AI study sheet with key concepts and self-check questions.</p></div>
+  </div>
+</main>
+<script>
+function go(job){location.href='/languages?job='+encodeURIComponent(job)}
+async function goYT(){
+  const url=document.getElementById('yturl').value.trim(), err=document.getElementById('yterr'), b=document.getElementById('ytbtn');
+  err.textContent='';
+  if(!/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(url)){err.textContent='Please paste a valid YouTube link.';return}
+  b.disabled=true;b.textContent='...';
+  try{
+    const r=await fetch('/api/youtube',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Server error');
+    go(d.job_id);
+  }catch(e){err.textContent=e.message;b.disabled=false;b.textContent='Continue'}
+}
+const drop=document.getElementById('drop'),file=document.getElementById('file'),
+      bar=document.getElementById('bar'),fill=document.getElementById('barfill'),uperr=document.getElementById('uperr');
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])upload(ev.dataTransfer.files[0])});
+file.addEventListener('change',()=>{if(file.files[0])upload(file.files[0])});
+function upload(f){
+  uperr.textContent='';
+  if(f.size>500*1024*1024){uperr.textContent='File too large (max 500 MB).';return}
+  bar.style.display='block';
+  const fd=new FormData();fd.append('video',f);
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/upload');
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)fill.style.width=(e.loaded/e.total*100)+'%'};
+  xhr.onload=()=>{
+    try{const d=JSON.parse(xhr.responseText);
+      if(xhr.status===200)go(d.job_id);else uperr.textContent=d.error||'Upload failed.';
+    }catch(_){uperr.textContent='Upload failed.'}
+  };
+  xhr.onerror=()=>uperr.textContent='Network error.';
+  xhr.send(fd);
+}
+</script>
+</body>
+</html>

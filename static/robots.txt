@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /processing
+Disallow: /result
+
+Sitemap: https://oreus.shadrakbessanh.me/sitemap.xml
