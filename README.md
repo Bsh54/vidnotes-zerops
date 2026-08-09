@@ -4,6 +4,16 @@
   <a href="https://app-2c58-8000.prg1.zerops.app"><b>Live app</b></a> &nbsp;|&nbsp; deployed on <b>Zerops</b>
 </p>
 
+## Demo
+
+https://raw.githubusercontent.com/Bsh54/vidnotes-zerops/main/docs/demo.mp4
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/Bsh54/vidnotes-zerops/main/docs/demo.mp4">
+    <img src="docs/demo-poster.png" width="640" alt="VidNotes demo">
+  </a>
+</p>
+
 ---
 
 ## The problem
