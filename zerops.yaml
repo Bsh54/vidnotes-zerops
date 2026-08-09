@@ -1,0 +1,39 @@
+zerops:
+  - setup: app
+    build:
+      base: python@3.12
+      os: alpine
+      prepareCommands:
+        - python3 -m pip install --upgrade pip
+      buildCommands:
+        - python3 -m pip install -r requirements.txt
+      deployFiles:
+        - app.py
+        - worker.py
+        - analytics.py
+        - guard.py
+        - static/
+        - requirements.txt
+      addToRunPrepare:
+        - requirements.txt
+      cache:
+        - /root/.cache/pip
+
+    run:
+      base: python@3.12
+      os: alpine
+      prepareCommands:
+        - sudo apk add --no-cache ffmpeg chromium nss freetype harfbuzz ttf-freefont
+        - python3 -m pip install --ignore-installed -r requirements.txt
+      envVariables:
+        VIDNOTES_CHROME: /usr/bin/chromium-browser
+        GROQ_STT_MODEL: whisper-large-v3-turbo
+        GEMINI_MODEL: gemini-flash-lite-latest
+      ports:
+        - port: 8000
+          httpSupport: true
+      start: gunicorn --bind 0.0.0.0:8000 --workers 1 --threads 8 --timeout 1800 app:app
+      healthCheck:
+        httpGet:
+          port: 8000
+          path: /
