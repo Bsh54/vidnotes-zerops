@@ -6,13 +6,12 @@
 
 ## Demo
 
-https://raw.githubusercontent.com/Bsh54/vidnotes-zerops/main/docs/demo.mp4
-
 <p align="center">
   <a href="https://raw.githubusercontent.com/Bsh54/vidnotes-zerops/main/docs/demo.mp4">
-    <img src="docs/demo-poster.png" width="640" alt="VidNotes demo">
+    <img src="docs/demo.gif" width="700" alt="VidNotes demo">
   </a>
 </p>
+<p align="center"><i>Click the demo to watch the full video with sound.</i></p>
 
 ---
 
