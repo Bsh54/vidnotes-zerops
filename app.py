@@ -341,6 +341,27 @@ def _find_chrome():
 _CHROME = _find_chrome()
 
 
+def _warm_chrome():
+    # First headless run builds the font cache and profile, which can exceed a
+    # request timeout. Warm it once at startup so the first real PDF is fast.
+    try:
+        import subprocess as _sp, tempfile
+        html = os.path.join(tempfile.gettempdir(), 'warm.html')
+        with open(html, 'w') as f:
+            f.write('<html><body>warm</body></html>')
+        out = os.path.join(tempfile.gettempdir(), 'warm.pdf')
+        _sp.run([_CHROME, '--headless=new', '--disable-gpu', '--no-sandbox',
+                 '--disable-dev-shm-usage', '--user-data-dir=/tmp/chrome-profile',
+                 f'--print-to-pdf={out}', '--no-pdf-header-footer', html],
+                capture_output=True, text=True, timeout=180)
+        print('[chrome-warm] ready', flush=True)
+    except Exception as e:
+        print(f'[chrome-warm] {e}', flush=True)
+
+
+threading.Thread(target=_warm_chrome, daemon=True).start()
+
+
 @app.route('/api/notes-pdf/<job_id>')
 def notes_pdf(job_id):
     safe = _safe_id(job_id)
@@ -357,8 +378,10 @@ def notes_pdf(job_id):
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(_PDF_SHELL.replace('__BODY__', body))
         r = _sp.run([_CHROME, '--headless=new', '--disable-gpu', '--no-sandbox',
+                     '--disable-dev-shm-usage', '--disable-software-rasterizer',
+                     '--user-data-dir=/tmp/chrome-profile',
                      f'--print-to-pdf={pdf_path}', '--no-pdf-header-footer',
-                     str(html_path)], capture_output=True, text=True, timeout=120)
+                     str(html_path)], capture_output=True, text=True, timeout=180)
         html_path.unlink(missing_ok=True)
         if r.returncode != 0 or not pdf_path.exists():
             return jsonify({'error': 'PDF rendering failed'}), 500
