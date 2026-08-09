@@ -316,7 +316,21 @@ _PDF_SHELL = ('<!doctype html><html><head><meta charset="utf-8"><style>'
               ' &bull; vidnotes.shadrakbessanh.me</div><hr class="top">'
               '__BODY__</body></html>')
 
-_CHROME = os.environ.get('VIDNOTES_CHROME', '/usr/bin/google-chrome')
+def _find_chrome():
+    # The headless browser used to render study notes to PDF. The binary name
+    # differs between images (Alpine chromium, Debian chrome), so honour the
+    # env override first, then fall back to the usual locations.
+    env = os.environ.get('VIDNOTES_CHROME')
+    candidates = [env] if env else []
+    candidates += ['/usr/bin/chromium-browser', '/usr/bin/chromium',
+                   '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable']
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    return env or '/usr/bin/chromium-browser'
+
+
+_CHROME = _find_chrome()
 
 
 @app.route('/api/notes-pdf/<job_id>')
