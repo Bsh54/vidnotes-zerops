@@ -312,8 +312,8 @@ blockquote { border-left: 3px solid #e3c8bd; margin: 8px 0; padding: 2px 14px; c
 _PDF_SHELL = ('<!doctype html><html><head><meta charset="utf-8"><style>'
               + _PDF_CSS + '</style></head><body>'
               '<div class="brand">Vid<span>Notes</span></div>'
-              '<div class="meta">AI study notes &mdash; generated from your lecture video'
-              ' &bull; vidnotes.shadrakbessanh.me</div><hr class="top">'
+              '<div class="meta">AI study notes, generated from your lecture video'
+              '</div><hr class="top">'
               '__BODY__</body></html>')
 
 def _find_chrome():
