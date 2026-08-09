@@ -999,7 +999,7 @@ def _enhance_only(video_path, out_path):
     # Embellissement sans sous-titres (transcription vide). Repli copie si échec.
     cmd = ['ffmpeg', '-y', '-i', video_path, '-vf', _ENH_CHAIN,
            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
-           '-c:a', 'aac', '-b:a', '128k', out_path]
+           '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', out_path]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         print(f'[enhance] échec, copie brute: {r.stderr[-300:]}', flush=True)
@@ -1039,7 +1039,9 @@ def _burn(video_path, srt_path, out_path, sub_style='mrbeast', size_scale=1.0, c
         'ffmpeg', '-y', '-i', video_path,
         '-vf', vf,
         '-c:v', 'libx264', '-preset', ('veryfast' if enhance else 'ultrafast'), '-crf', crf, '-threads', '0',
-        '-c:a', 'aac', '-b:a', '128k', out_path,
+        '-c:a', 'aac', '-b:a', '128k',
+        '-movflags', '+faststart',   # moov atom at the front so browsers can stream it
+        out_path,
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)
     try:
