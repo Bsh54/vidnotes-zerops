@@ -1,6 +1,19 @@
 import os, subprocess, json, shutil, requests, threading
 import analytics
+import store
 from pathlib import Path
+
+
+def _persist(job_id, output_dir, jobs, lock):
+    # Save the generated files to object storage and the job record to Postgres
+    # so results survive a container restart. No-op when those services are off.
+    try:
+        store.upload_outputs(job_id, output_dir)
+        with lock:
+            snap = dict(jobs.get(job_id, {}))
+        store.save_job(job_id, snap)
+    except Exception as e:
+        print(f'[persist] {e}', flush=True)
 
 # Traduction : Google Gemini (remplace Lewis). Clé en variable d'env GEMINI_API_KEY.
 # Modèle 'gemini-flash-lite-latest' = rapide (~3-4s) et excellente qualité FR/EN/argot.
@@ -225,6 +238,7 @@ def _run(job_id, jobs, lock, output_dir):
             _enhance_only(filepath, out_path)
             t_bn = _t.time() - _s
             _set(jobs, lock, job_id, progress=100, step=1, status='done', output=out_path)
+            _persist(job_id, output_dir, jobs, lock)
             _record('done')
             try:
                 os.remove(filepath)
@@ -288,6 +302,7 @@ def _run(job_id, jobs, lock, output_dir):
               _scale, j.get('sub_color') or None, enhance=bool(j.get('enhance')))
         t_bn = _t.time() - _s
         _set(jobs, lock, job_id, progress=100, step=3, status='done', output=out_path)
+        _persist(job_id, output_dir, jobs, lock)
         _record('done')
 
         try:

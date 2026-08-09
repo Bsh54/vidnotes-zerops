@@ -20,6 +20,8 @@ CORS(app)
 
 import analytics
 analytics.init_db()
+import store
+store.init_db()
 import guard
 ADMIN_KEY = os.environ.get('VIDNOTES_ADMIN_KEY', 'vidnotes-admin-2026')
 TRACKED_PATHS = {'/', '/languages', '/processing', '/result'}
@@ -83,6 +85,11 @@ def _save_job(job_id):
 
 
 def _load_jobs():
+    # Restore finished jobs from Postgres first (survives container restarts),
+    # then overlay any local job files still on disk.
+    for jid, j in store.load_jobs().items():
+        if j.get('status') in ('done', 'error'):
+            jobs[jid] = j
     for p in JOBS_DIR.glob('*.json'):
         try:
             with open(p) as f:
@@ -289,6 +296,7 @@ def youtube_import():
 @app.route('/api/summary/<job_id>')
 def get_summary(job_id):
     safe = _safe_id(job_id)
+    store.ensure_local(safe, OUTPUT_DIR, '_summary.json')
     path = OUTPUT_DIR / f'{safe}_summary.json'
     if not path.exists():
         return jsonify({'error': 'Not ready'}), 404
@@ -365,8 +373,10 @@ threading.Thread(target=_warm_chrome, daemon=True).start()
 @app.route('/api/notes-pdf/<job_id>')
 def notes_pdf(job_id):
     safe = _safe_id(job_id)
+    store.ensure_local(safe, OUTPUT_DIR, '_notes.pdf')
     pdf_path = OUTPUT_DIR / f'{safe}_notes.pdf'
     if not pdf_path.exists():
+        store.ensure_local(safe, OUTPUT_DIR, '_summary.json')
         src = OUTPUT_DIR / f'{safe}_summary.json'
         if not src.exists():
             return jsonify({'error': 'Not ready'}), 404
@@ -385,6 +395,7 @@ def notes_pdf(job_id):
         html_path.unlink(missing_ok=True)
         if r.returncode != 0 or not pdf_path.exists():
             return jsonify({'error': 'PDF rendering failed'}), 500
+        store.upload_outputs(safe, OUTPUT_DIR)   # keep the rendered PDF in object storage
     return send_file(str(pdf_path), as_attachment=True,
                      download_name=f'vidnotes_study_notes.pdf', mimetype='application/pdf')
 
@@ -392,6 +403,7 @@ def notes_pdf(job_id):
 @app.route('/api/transcript/<job_id>')
 def get_transcript(job_id):
     safe = _safe_id(job_id)
+    store.ensure_local(safe, OUTPUT_DIR, '_transcript.txt')
     path = OUTPUT_DIR / f'{safe}_transcript.txt'
     if not path.exists():
         return jsonify({'error': 'Not ready'}), 404
@@ -463,6 +475,8 @@ def video_stream(job_id):
         return jsonify({'error': 'Not ready'}), 400
     path = os.path.abspath(j['output'])
     if not os.path.exists(path):
+        store.ensure_local(_safe_id(job_id), OUTPUT_DIR, '_output.mp4')
+    if not os.path.exists(path):
         return jsonify({'error': 'File missing'}), 404
     file_size = os.path.getsize(path)
     range_header = request.headers.get('Range')
@@ -511,7 +525,10 @@ def download(job_id):
             jobs[job_id]['downloaded'] = True
             _save_job(job_id)
     name = f"vidnotes_{Path(j['filename']).stem}_subtitled.mp4"
-    return send_file(j['output'], as_attachment=True, download_name=name, mimetype='video/mp4')
+    out = j['output']
+    if not os.path.exists(out):
+        out = store.ensure_local(_safe_id(job_id), OUTPUT_DIR, '_output.mp4') or out
+    return send_file(out, as_attachment=True, download_name=name, mimetype='video/mp4')
 
 
 # ── Chunked upload ─────────────────────────────────────────────────────────────
