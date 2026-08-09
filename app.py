@@ -1,7 +1,15 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory, Response
-from flask_cors import CORS
 import os, uuid, threading, json, shutil, tempfile, time as _time
 from pathlib import Path
+
+# Load a local .env if present (no-op in production, where Zerops injects env vars).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from flask import Flask, request, jsonify, send_file, send_from_directory, Response
+from flask_cors import CORS
 from worker import process_video
 
 import mimetypes

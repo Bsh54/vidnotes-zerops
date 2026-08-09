@@ -4,3 +4,4 @@ requests>=2.31
 gunicorn>=21.2
 yt-dlp
 markdown>=3.5
+python-dotenv>=1.0
