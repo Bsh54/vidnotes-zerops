@@ -35,10 +35,7 @@ h2.sec{font-family:'Space Grotesk',sans-serif;font-size:15px;text-transform:uppe
 <main>
   <h1>Which language do you study in?</h1>
   <p class="sub">Subtitles, transcript and study notes will all be in this language.</p>
-  <h2 class="sec">World languages</h2>
-  <div class="grid" id="world"></div>
-  <h2 class="sec">African languages</h2>
-  <div class="grid" id="africa"></div>
+  <div class="grid" id="all"></div>
 </main>
 <div class="footer"><button class="btn" id="gobtn" disabled onclick="start()">Generate my study pack →</button></div>
 <script>
@@ -76,7 +73,10 @@ function fill(id,list){
     grid.appendChild(d);
   });
 }
-fill('world',WORLD);fill('africa',AFRICA);
+// Mix African and world languages into a single grid (no separate section).
+const ALL=[];const _m=Math.max(WORLD.length,AFRICA.length);
+for(let i=0;i<_m;i++){if(WORLD[i])ALL.push(WORLD[i]);if(AFRICA[i])ALL.push(AFRICA[i]);}
+fill('all',ALL);
 function proceed(){
   sessionStorage.setItem('ss_'+job,JSON.stringify({tgt_lang:sel}));
   location.href='/processing?job='+encodeURIComponent(job)+'&lang='+encodeURIComponent(sel);
