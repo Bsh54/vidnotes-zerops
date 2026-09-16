@@ -264,6 +264,7 @@ def _yt_fetch(job_id, url):
     # Format ladder: YouTube 720p video+audio, then progressive, then any best
     # single format (covers a plain .mp4 link handled by the generic extractor).
     cmd = ['yt-dlp', '--no-playlist', '--max-filesize', '500M',
+           '--js-runtimes', 'node',   # YouTube now needs a JS runtime to solve its challenge
            '-f', 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[height<=720]/b',
            '--merge-output-format', 'mp4', '-o', str(dest), url]
     import subprocess

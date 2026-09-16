@@ -24,7 +24,7 @@ zerops:
       base: python@3.12
       os: alpine
       prepareCommands:
-        - sudo apk add --no-cache ffmpeg chromium nss freetype harfbuzz ttf-freefont
+        - sudo apk add --no-cache ffmpeg chromium nss freetype harfbuzz ttf-freefont nodejs
         - python3 -m pip install --ignore-installed -r requirements.txt
       envVariables:
         VIDNOTES_CHROME: /usr/bin/chromium-browser
