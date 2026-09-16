@@ -246,8 +246,10 @@ def upload():
 # La personne colle un lien YouTube : on télécharge la vidéo côté serveur avec
 # yt-dlp (720p max pour borner CPU/disque) puis le job suit le flux normal.
 import re as _re
+# Accept every YouTube link shape: any subdomain (www, m, music, ...), youtu.be
+# short links, shorts/live/embed/watch, and youtube-nocookie. yt-dlp parses the rest.
 _YT_RE = _re.compile(
-    r'^https?://(www\.|m\.)?(youtube\.com/(watch\?|shorts/|live/|embed/)|youtu\.be/)', _re.I)
+    r'^https?://([\w-]+\.)*(youtube\.com|youtube-nocookie\.com|youtu\.be)/\S+', _re.I)
 
 
 def _yt_fetch(job_id, url):
