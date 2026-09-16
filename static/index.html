@@ -68,7 +68,7 @@ h1 em{color:var(--primary);font-style:normal}
     </div>
     <div class="mode">
       <h2>📂 Upload your video</h2>
-      <p>A recorded class, a downloaded course — up to 500&nbsp;MB.</p>
+      <p>A recorded class or a downloaded course, any size.</p>
       <div class="drop" id="drop" onclick="document.getElementById('file').click()">
         <div class="ic">🎬</div>
         <b>Click or drop your video here</b>
@@ -108,7 +108,6 @@ drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])upload(ev.dataTran
 file.addEventListener('change',()=>{if(file.files[0])upload(file.files[0])});
 function upload(f){
   uperr.textContent='';
-  if(f.size>500*1024*1024){uperr.textContent='File too large (max 500 MB).';return}
   bar.style.display='block';
   const fd=new FormData();fd.append('video',f);
   const xhr=new XMLHttpRequest();
