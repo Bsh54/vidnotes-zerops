@@ -250,12 +250,21 @@ import re as _re
 # short links, shorts/live/embed/watch, and youtube-nocookie. yt-dlp parses the rest.
 _YT_RE = _re.compile(
     r'^https?://([\w-]+\.)*(youtube\.com|youtube-nocookie\.com|youtu\.be)/\S+', _re.I)
+# Also accept a direct link to a video file (mp4, mov, mkv, webm, m4v, avi),
+# optionally followed by query params. yt-dlp fetches these via its generic extractor.
+_MEDIA_RE = _re.compile(r'^https?://\S+\.(mp4|mov|mkv|webm|m4v|avi)(\?\S*)?$', _re.I)
+
+
+def _is_supported_url(u):
+    return bool(_YT_RE.match(u) or _MEDIA_RE.match(u))
 
 
 def _yt_fetch(job_id, url):
     dest = UPLOAD_DIR / f'{job_id}.mp4'
+    # Format ladder: YouTube 720p video+audio, then progressive, then any best
+    # single format (covers a plain .mp4 link handled by the generic extractor).
     cmd = ['yt-dlp', '--no-playlist', '--max-filesize', '500M',
-           '-f', 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[height<=720]',
+           '-f', 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[height<=720]/b',
            '--merge-output-format', 'mp4', '-o', str(dest), url]
     import subprocess
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
@@ -265,7 +274,7 @@ def _yt_fetch(job_id, url):
         if r.returncode != 0 or not dest.exists() or dest.stat().st_size == 0:
             err = (r.stderr or '')[-300:]
             jobs[job_id].update(status='error',
-                                error='Impossible de recuperer cette video YouTube. ' + err)
+                                error='Could not fetch this link. ' + err)
         else:
             jobs[job_id].update(status='uploaded',
                                 size_mb=round(dest.stat().st_size / (1024 * 1024), 2))
@@ -276,8 +285,8 @@ def _yt_fetch(job_id, url):
 def youtube_import():
     data = request.get_json() or {}
     url = (data.get('url') or '').strip()
-    if not _YT_RE.match(url):
-        return jsonify({'error': 'Invalid YouTube link'}), 400
+    if not _is_supported_url(url):
+        return jsonify({'error': 'Enter a valid YouTube link or a direct video link (.mp4, .mov, .webm...).'}), 400
     # Anti-doublon : même lien déjà en cours pour cette IP -> job existant.
     ip = _client_ip()
     with lock:

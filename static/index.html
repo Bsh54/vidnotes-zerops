@@ -58,10 +58,10 @@ h1 em{color:var(--primary);font-style:normal}
 
   <div class="modes">
     <div class="mode">
-      <h2>📺 From a YouTube link</h2>
-      <p>Paste the link of any lecture, course or tutorial.</p>
+      <h2>📺 From a link</h2>
+      <p>Paste a YouTube link, or a direct video link (.mp4, .mov, .webm...).</p>
       <div class="ytrow">
-        <input id="yturl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+        <input id="yturl" type="url" placeholder="YouTube link or https://.../video.mp4" autocomplete="off">
         <button class="btn" id="ytbtn" onclick="goYT()">Continue</button>
       </div>
       <div class="err" id="yterr"></div>
@@ -91,7 +91,7 @@ function go(job){location.href='/languages?job='+encodeURIComponent(job)}
 async function goYT(){
   const url=document.getElementById('yturl').value.trim(), err=document.getElementById('yterr'), b=document.getElementById('ytbtn');
   err.textContent='';
-  if(!/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(url)){err.textContent='Please paste a valid YouTube link.';return}
+  if(!/^https?:\/\/([\w-]+\.)*(youtube\.com|youtube-nocookie\.com|youtu\.be)\/\S+/i.test(url) && !/^https?:\/\/\S+\.(mp4|mov|mkv|webm|m4v|avi)(\?\S*)?$/i.test(url)){err.textContent='Paste a valid YouTube link or a direct video link (.mp4, .mov...).';return}
   b.disabled=true;b.textContent='...';
   try{
     const r=await fetch('/api/youtube',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
