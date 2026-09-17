@@ -187,11 +187,11 @@ def _run(job_id, jobs, lock, output_dir):
     src_lang = j.get('src_lang', 'auto')
     tgt_lang = j.get('tgt_lang', 'en')
 
-    # Server-limit: only the first 15 minutes are processed (matches the UI notice).
-    MAX_SECONDS = int(os.environ.get('OREUS_MAX_SECONDS', '900'))
+    # No duration cap by default (0 = unlimited). Set OREUS_MAX_SECONDS>0 to cap.
+    MAX_SECONDS = int(os.environ.get('OREUS_MAX_SECONDS', '0'))
     try:
         _dur = _video_duration(filepath)
-        if _dur and _dur > MAX_SECONDS + 5:
+        if MAX_SECONDS > 0 and _dur and _dur > MAX_SECONDS + 5:
             _trimmed = filepath.rsplit('.', 1)[0] + '_cap.mp4'
             _r = subprocess.run(['ffmpeg', '-y', '-i', filepath, '-t', str(MAX_SECONDS), '-c', 'copy', _trimmed], capture_output=True, text=True)
             if _r.returncode != 0 or not os.path.exists(_trimmed) or os.path.getsize(_trimmed) == 0:
@@ -319,6 +319,11 @@ def _run(job_id, jobs, lock, output_dir):
             os.remove(filepath)
         except Exception:
             pass
+    except _CreditsError:
+        _set(jobs, lock, job_id, status='error',
+             error='Our transcription credits are used up for the moment. Please try again a little later, we are topping them up. Thanks for your patience.')
+        print(f'[worker] job={job_id} credits exhausted', flush=True)
+        _record('error', 'credits')
     except Exception as exc:
         _set(jobs, lock, job_id, status='error', error=str(exc))
         print(f'[worker] job={job_id} error: {exc}', flush=True)
@@ -413,6 +418,16 @@ def _video_duration(path):
 
 GROQ_KEY = os.environ.get('GROQ_API_KEY', '')
 GROQ_STT_MODEL = os.environ.get('GROQ_STT_MODEL', 'whisper-large-v3-turbo')
+OPENAI_KEY = os.environ.get('OPENAI_API_KEY', '')
+OPENAI_STT_MODEL = os.environ.get('OPENAI_STT_MODEL', 'whisper-1')
+
+
+class _CreditsError(Exception):
+    """A transcription provider is out of credits / quota (HTTP 429 or 402)."""
+
+
+def _is_credit_status(code):
+    return code in (402, 429)
 
 
 def _transcribe_groq(filepath, src_lang, duration):
@@ -442,6 +457,8 @@ def _transcribe_groq(filepath, src_lang, duration):
                 headers={'Authorization': f'Bearer {GROQ_KEY}'},
                 files={'file': ('audio.mp3', fh, 'audio/mpeg')},
                 data=data, timeout=300)
+        if _is_credit_status(resp.status_code):
+            raise _CreditsError(f'groq {resp.status_code}')
         resp.raise_for_status()
         segs = resp.json().get('segments') or []
         out = [{'start': float(s['start']), 'end': float(s['end']),
@@ -450,6 +467,46 @@ def _transcribe_groq(filepath, src_lang, duration):
         if not out:
             raise ValueError('aucun segment')
         print(f'[groq-stt] ok: {len(out)} segments', flush=True)
+        return out
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
+def _transcribe_openai(filepath, src_lang, duration):
+    # Fallback transcription via the official OpenAI Whisper API (whisper-1).
+    # Auto-detects the spoken language when src_lang is 'auto'.
+    import uuid as _u, tempfile
+    if not OPENAI_KEY:
+        raise RuntimeError('OPENAI_API_KEY absente')
+    workdir = tempfile.mkdtemp(prefix='vidnotes_oai_')
+    try:
+        mp3 = os.path.join(workdir, f'a_{_u.uuid4().hex[:8]}.mp3')
+        r = subprocess.run(['ffmpeg', '-y', '-i', filepath, '-vn', '-ac', '1',
+                            '-ar', '16000', '-b:a', '32k', mp3],
+                           capture_output=True, text=True)
+        if r.returncode != 0 or not os.path.exists(mp3):
+            raise RuntimeError(f'extract mp3: {r.stderr[-200:]}')
+        if os.path.getsize(mp3) > 24 * 1024 * 1024:
+            raise RuntimeError('audio trop long pour l API OpenAI')
+        data = {'model': OPENAI_STT_MODEL, 'response_format': 'verbose_json'}
+        if src_lang != 'auto':
+            data['language'] = src_lang
+        with open(mp3, 'rb') as fh:
+            resp = requests.post(
+                'https://api.openai.com/v1/audio/transcriptions',
+                headers={'Authorization': f'Bearer {OPENAI_KEY}'},
+                files={'file': ('audio.mp3', fh, 'audio/mpeg')},
+                data=data, timeout=300)
+        if _is_credit_status(resp.status_code):
+            raise _CreditsError(f'openai {resp.status_code}')
+        resp.raise_for_status()
+        segs = resp.json().get('segments') or []
+        out = [{'start': float(s['start']), 'end': float(s['end']),
+                'text': str(s['text']).strip()}
+               for s in segs if str(s.get('text', '')).strip()]
+        if not out:
+            raise ValueError('aucun segment')
+        print(f'[openai-stt] ok: {len(out)} segments', flush=True)
         return out
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -525,18 +582,41 @@ def _transcribe_gemini(filepath, src_lang, duration):
 
 
 def _transcribe(filepath, src_lang, on_progress=None):
-    # Voie rapide : Groq API (Whisper large GPU). Repli : Whisper local.
+    # Whisper via Groq first, then OpenAI Whisper as a fallback, then local.
+    # src_lang 'auto' => the provider auto-detects the language (any language).
     duration = _video_duration(filepath)
+    if on_progress:
+        on_progress(0.15)   # signale que ca travaille
+    credits_out = False
+
+    # 1) Groq (fast GPU Whisper)
     try:
-        if on_progress:
-            on_progress(0.15)   # signale que ca travaille
         return _transcribe_groq(filepath, src_lang, duration)
+    except _CreditsError:
+        credits_out = True
+        print('[stt] groq out of credits', flush=True)
     except Exception as e:
         print(f'[groq-stt] indisponible ({e})', flush=True)
-        if os.environ.get('VIDNOTES_LOCAL_WHISPER') != '1':
-            raise
-        print('[groq-stt] repli Whisper local', flush=True)
-    return _transcribe_local(filepath, src_lang, on_progress)
+
+    # 2) OpenAI Whisper fallback
+    if OPENAI_KEY:
+        try:
+            return _transcribe_openai(filepath, src_lang, duration)
+        except _CreditsError:
+            credits_out = True
+            print('[stt] openai out of credits', flush=True)
+        except Exception as e:
+            print(f'[openai-stt] indisponible ({e})', flush=True)
+
+    # 3) local Whisper if explicitly enabled
+    if os.environ.get('VIDNOTES_LOCAL_WHISPER') == '1':
+        print('[stt] falling back to local Whisper', flush=True)
+        return _transcribe_local(filepath, src_lang, on_progress)
+
+    # Nothing worked: surface a friendly "credits" message if that was the cause.
+    if credits_out:
+        raise _CreditsError('all transcription providers are out of credits')
+    raise RuntimeError('transcription unavailable')
 
 
 def _transcribe_local(filepath, src_lang, on_progress=None):
