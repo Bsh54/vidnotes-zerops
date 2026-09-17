@@ -34,7 +34,7 @@ zerops:
         GROQ_STT_MODEL: whisper-large-v3-turbo
         GEMINI_MODEL: gemini-flash-lite-latest
         VIDNOTES_LOCAL_WHISPER: "1"
-        OREUS_WHISPER_MODEL: base
+        OREUS_WHISPER_MODEL: tiny
         PGHOST: ${db_hostname}
         PGPORT: ${db_port}
         PGUSER: ${db_user}

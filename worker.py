@@ -581,42 +581,78 @@ def _transcribe_gemini(filepath, src_lang, duration):
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def _transcribe(filepath, src_lang, on_progress=None):
-    # Whisper via Groq first, then OpenAI Whisper as a fallback, then local.
-    # src_lang 'auto' => the provider auto-detects the language (any language).
-    duration = _video_duration(filepath)
-    if on_progress:
-        on_progress(0.15)   # signale que ca travaille
+def _transcribe_one(path, src_lang, duration, on_progress=None):
+    # Provider ladder for a single (short enough) media file:
+    # Groq -> OpenAI Whisper -> local Whisper. src_lang 'auto' => auto-detect.
     credits_out = False
-
-    # 1) Groq (fast GPU Whisper)
     try:
-        return _transcribe_groq(filepath, src_lang, duration)
+        return _transcribe_groq(path, src_lang, duration)
     except _CreditsError:
         credits_out = True
         print('[stt] groq out of credits', flush=True)
     except Exception as e:
         print(f'[groq-stt] indisponible ({e})', flush=True)
 
-    # 2) OpenAI Whisper fallback
     if OPENAI_KEY:
         try:
-            return _transcribe_openai(filepath, src_lang, duration)
+            return _transcribe_openai(path, src_lang, duration)
         except _CreditsError:
             credits_out = True
             print('[stt] openai out of credits', flush=True)
         except Exception as e:
             print(f'[openai-stt] indisponible ({e})', flush=True)
 
-    # 3) local Whisper if explicitly enabled
     if os.environ.get('VIDNOTES_LOCAL_WHISPER') == '1':
         print('[stt] falling back to local Whisper', flush=True)
-        return _transcribe_local(filepath, src_lang, on_progress)
+        return _transcribe_local(path, src_lang, on_progress)
 
-    # Nothing worked: surface a friendly "credits" message if that was the cause.
     if credits_out:
         raise _CreditsError('all transcription providers are out of credits')
     raise RuntimeError('transcription unavailable')
+
+
+# Split long audio into chunks so each stays under Groq's 25 MB limit and keeps
+# local-Whisper memory bounded (avoids OOM on small containers). 15 min default.
+_CHUNK_SEC = int(os.environ.get('VIDNOTES_CHUNK_SEC', '900'))
+
+
+def _transcribe(filepath, src_lang, on_progress=None):
+    duration = _video_duration(filepath)
+    if on_progress:
+        on_progress(0.05)
+    if duration <= _CHUNK_SEC + 5:
+        return _transcribe_one(filepath, src_lang, duration, on_progress)
+
+    import tempfile, glob as _glob
+    workdir = tempfile.mkdtemp(prefix='vidnotes_chunks_')
+    try:
+        patt = os.path.join(workdir, 'c_%04d.mp3')
+        r = subprocess.run(['ffmpeg', '-y', '-i', filepath, '-vn', '-ac', '1',
+                            '-ar', '16000', '-b:a', '32k', '-f', 'segment',
+                            '-segment_time', str(_CHUNK_SEC), patt],
+                           capture_output=True, text=True)
+        chunks = sorted(_glob.glob(os.path.join(workdir, 'c_*.mp3')))
+        if r.returncode != 0 or not chunks:
+            return _transcribe_one(filepath, src_lang, duration, on_progress)
+        out = []
+        offset = 0.0
+        n = len(chunks)
+        print(f'[stt] long audio: {n} chunks of ~{_CHUNK_SEC}s', flush=True)
+        for i, ch in enumerate(chunks):
+            d = _video_duration(ch)
+            segs = _transcribe_one(ch, src_lang, d)
+            for s in segs:
+                out.append({'start': s['start'] + offset,
+                            'end': s['end'] + offset, 'text': s['text']})
+            offset += d
+            if on_progress:
+                on_progress(min(0.99, (i + 1) / n))
+        if not out:
+            raise RuntimeError('no segments from any chunk')
+        print(f'[stt] chunked ok: {len(out)} segments over {n} chunks', flush=True)
+        return out
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 def _transcribe_local(filepath, src_lang, on_progress=None):
