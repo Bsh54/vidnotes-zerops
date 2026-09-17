@@ -30,6 +30,8 @@ zerops:
         VIDNOTES_CHROME: /usr/bin/chromium-browser
         GROQ_STT_MODEL: whisper-large-v3-turbo
         GEMINI_MODEL: gemini-flash-lite-latest
+        VIDNOTES_LOCAL_WHISPER: "1"
+        OREUS_WHISPER_MODEL: base
         PGHOST: ${db_hostname}
         PGPORT: ${db_port}
         PGUSER: ${db_user}
